@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>图片压缩工具</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app">
+      <section class="workspace">
+        <header class="topbar">
+          <div>
+            <h1>图片压缩工具</h1>
+            <p>本地压缩，不上传图片。默认压到 200KB 以下。</p>
+          </div>
+          <div class="target-control">
+            <label for="targetSize">目标大小</label>
+            <div class="input-row">
+              <input id="targetSize" type="number" min="20" max="10240" step="10" value="200">
+              <span>KB</span>
+            </div>
+          </div>
+        </header>
+
+        <section id="dropZone" class="drop-zone" tabindex="0">
+          <input id="fileInput" type="file" accept="image/jpeg,image/png,image/webp">
+          <div class="upload-icon" aria-hidden="true">+</div>
+          <h2>选择或拖入图片</h2>
+          <p>支持 JPG、PNG、WebP</p>
+        </section>
+
+        <section id="statusPanel" class="status-panel hidden" aria-live="polite">
+          <div class="loader"></div>
+          <span id="statusText">正在压缩...</span>
+        </section>
+
+        <section id="resultPanel" class="result-panel hidden">
+          <div class="metrics">
+            <article>
+              <span>原图大小</span>
+              <strong id="originalSize">-</strong>
+            </article>
+            <article>
+              <span>压缩后</span>
+              <strong id="compressedSize">-</strong>
+            </article>
+            <article>
+              <span>压缩比例</span>
+              <strong id="savedRatio">-</strong>
+            </article>
+            <article>
+              <span>输出参数</span>
+              <strong id="outputInfo">-</strong>
+            </article>
+          </div>
+
+          <div class="preview-grid">
+            <figure>
+              <figcaption>原图</figcaption>
+              <img id="originalPreview" alt="原图预览">
+            </figure>
+            <figure>
+              <figcaption>压缩图</figcaption>
+              <img id="compressedPreview" alt="压缩图预览">
+            </figure>
+          </div>
+
+          <div class="actions">
+            <button id="retryButton" type="button">重新选择</button>
+            <a id="downloadLink" class="download" download>下载压缩图</a>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
