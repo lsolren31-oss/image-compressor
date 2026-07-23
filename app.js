@@ -326,6 +326,7 @@ async function handleVideoFile(file) {
     originalVideoPreview.src = videoOriginalUrl;
 
     const metadata = await readVideoMetadata(videoOriginalUrl);
+    validateBrowserVideoJob(file, metadata);
     showVideoStatus("正在加载 FFmpeg，首次使用可能需要一点时间...", false);
 
     const result = await convertVideo(file, {
@@ -362,6 +363,7 @@ async function convertVideo(file, options = {}) {
     mode: "cover",
     outputName: "converted.mp4",
     onProgress: null,
+    timeoutMs: 300000,
     ...options
   };
 
@@ -371,47 +373,54 @@ async function convertVideo(file, options = {}) {
   const filter = buildVideoFilter(config.width, config.height, config.mode);
   const { fetchFile } = await loadFFmpegModules();
 
-  await ffmpeg.writeFile(inputName, await fetchFile(file));
-
-  const args = [
-    "-i",
-    inputName,
-    "-vf",
-    filter,
-    "-c:v",
-    "libx264",
-    "-preset",
-    "veryfast",
-    "-crf",
-    "23",
-    "-pix_fmt",
-    "yuv420p",
-    "-c:a",
-    "aac",
-    "-b:a",
-    "128k",
-    "-movflags",
-    "faststart",
-    outputName
-  ];
-
   try {
-    await ffmpeg.exec(args);
-  } catch (error) {
-    await ffmpeg.exec(args.filter((arg) => !["-c:a", "aac", "-b:a", "128k"].includes(arg)));
+    await ffmpeg.writeFile(inputName, await fetchFile(file));
+
+    const args = [
+      "-i",
+      inputName,
+      "-vf",
+      filter,
+      "-map",
+      "0:v:0",
+      "-map",
+      "0:a?",
+      "-c:v",
+      "libx264",
+      "-preset",
+      "ultrafast",
+      "-crf",
+      "28",
+      "-pix_fmt",
+      "yuv420p",
+      "-c:a",
+      "aac",
+      "-b:a",
+      "128k",
+      "-shortest",
+      "-movflags",
+      "faststart",
+      outputName
+    ];
+
+    const exitCode = await ffmpeg.exec(args, config.timeoutMs);
+    if (exitCode !== 0) {
+      throw new Error("视频转换超时或失败。浏览器版更适合 3 分钟以内的短视频。");
+    }
+
+    const data = await ffmpeg.readFile(outputName);
+
+    return {
+      blob: new Blob([data], { type: "video/mp4" }),
+      outputName,
+      width: config.width,
+      height: config.height,
+      mode: config.mode,
+      outputType: "video/mp4"
+    };
+  } finally {
+    await cleanupFFmpegFiles(ffmpeg, [inputName, outputName]);
   }
-
-  const data = await ffmpeg.readFile(outputName);
-  await cleanupFFmpegFiles(ffmpeg, [inputName, outputName]);
-
-  return {
-    blob: new Blob([data], { type: "video/mp4" }),
-    outputName,
-    width: config.width,
-    height: config.height,
-    mode: config.mode,
-    outputType: "video/mp4"
-  };
 }
 
 async function loadFFmpeg(onProgress) {
@@ -487,6 +496,19 @@ async function readVideoMetadata(url) {
     video.onerror = () => reject(new Error("无法读取视频信息。"));
     video.src = url;
   });
+}
+
+function validateBrowserVideoJob(file, metadata) {
+  const maxBrowserVideoBytes = 300 * 1024 * 1024;
+  const maxBrowserVideoSeconds = 180;
+
+  if (file.size > maxBrowserVideoBytes) {
+    throw new Error("这个视频太大了。浏览器本地转换建议使用 300MB 以内的视频。");
+  }
+
+  if (Number.isFinite(metadata.duration) && metadata.duration > maxBrowserVideoSeconds) {
+    throw new Error("这个视频太长了。浏览器本地转换建议使用 3 分钟以内的短视频。");
+  }
 }
 
 async function createBitmap(file) {
