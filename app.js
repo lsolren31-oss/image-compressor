@@ -36,9 +36,9 @@ const convertedVideoPreview = document.querySelector("#convertedVideoPreview");
 const videoDownloadLink = document.querySelector("#videoDownloadLink");
 const videoRetryButton = document.querySelector("#videoRetryButton");
 
-const FFmpegCDNBase = "https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd";
-const FFmpegScriptUrl = "https://unpkg.com/@ffmpeg/ffmpeg@0.12.15/dist/umd/ffmpeg.js";
-const FFmpegUtilScriptUrl = "https://unpkg.com/@ffmpeg/util@0.12.2/dist/umd/index.js";
+const FFmpegCoreCDNBase = "https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd";
+const FFmpegModuleUrl = "https://unpkg.com/@ffmpeg/ffmpeg@0.12.15/dist/esm/index.js";
+const FFmpegUtilModuleUrl = "https://unpkg.com/@ffmpeg/util@0.12.2/dist/esm/index.js";
 
 const platformPresets = {
   instagram: [
@@ -79,6 +79,8 @@ let videoConvertedUrl = "";
 let selectedPreset = platformPresets.instagram[1];
 let ffmpegInstance = null;
 let ffmpegLoadingPromise = null;
+let ffmpegModulesPromise = null;
+let ffmpegProgressHandler = null;
 
 tabButtons.forEach((button) => {
   button.addEventListener("click", () => switchTool(button.dataset.tool));
@@ -366,7 +368,7 @@ async function convertVideo(file, options = {}) {
   const inputName = `input-${Date.now()}${getVideoExtension(file.name)}`;
   const outputName = config.outputName || "converted.mp4";
   const filter = buildVideoFilter(config.width, config.height, config.mode);
-  const { fetchFile } = window.FFmpegUtil;
+  const { fetchFile } = await loadFFmpegModules();
 
   await ffmpeg.writeFile(inputName, await fetchFile(file));
 
@@ -402,7 +404,7 @@ async function convertVideo(file, options = {}) {
   await cleanupFFmpegFiles(ffmpeg, [inputName, outputName]);
 
   return {
-    blob: new Blob([data.buffer], { type: "video/mp4" }),
+    blob: new Blob([data], { type: "video/mp4" }),
     outputName,
     width: config.width,
     height: config.height,
@@ -412,32 +414,26 @@ async function convertVideo(file, options = {}) {
 }
 
 async function loadFFmpeg(onProgress) {
+  ffmpegProgressHandler = onProgress;
+
   if (ffmpegInstance) {
-    ffmpegInstance.on("progress", ({ progress }) => {
-      if (onProgress) {
-        onProgress(progress);
-      }
-    });
     return ffmpegInstance;
   }
 
   if (!ffmpegLoadingPromise) {
     ffmpegLoadingPromise = (async () => {
-      await loadScript(FFmpegScriptUrl);
-      await loadScript(FFmpegUtilScriptUrl);
-
-      const { FFmpeg } = window.FFmpegWASM;
-      const { toBlobURL } = window.FFmpegUtil;
+      const { FFmpeg, toBlobURL } = await loadFFmpegModules();
       const ffmpeg = new FFmpeg();
+
       ffmpeg.on("progress", ({ progress }) => {
-        if (onProgress) {
-          onProgress(progress);
+        if (ffmpegProgressHandler) {
+          ffmpegProgressHandler(progress);
         }
       });
 
       await ffmpeg.load({
-        coreURL: await toBlobURL(`${FFmpegCDNBase}/ffmpeg-core.js`, "text/javascript"),
-        wasmURL: await toBlobURL(`${FFmpegCDNBase}/ffmpeg-core.wasm`, "application/wasm")
+        coreURL: await toBlobURL(`${FFmpegCoreCDNBase}/ffmpeg-core.js`, "text/javascript"),
+        wasmURL: await toBlobURL(`${FFmpegCoreCDNBase}/ffmpeg-core.wasm`, "application/wasm")
       });
 
       ffmpegInstance = ffmpeg;
@@ -446,6 +442,21 @@ async function loadFFmpeg(onProgress) {
   }
 
   return ffmpegLoadingPromise;
+}
+
+async function loadFFmpegModules() {
+  if (!ffmpegModulesPromise) {
+    ffmpegModulesPromise = Promise.all([
+      import(FFmpegModuleUrl),
+      import(FFmpegUtilModuleUrl)
+    ]).then(([ffmpegModule, utilModule]) => ({
+      FFmpeg: ffmpegModule.FFmpeg,
+      fetchFile: utilModule.fetchFile,
+      toBlobURL: utilModule.toBlobURL
+    }));
+  }
+
+  return ffmpegModulesPromise;
 }
 
 function buildVideoFilter(width, height, mode) {
@@ -594,21 +605,6 @@ function canvasToBlob(canvas, type, quality) {
       type,
       quality
     );
-  });
-}
-
-function loadScript(src) {
-  return new Promise((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) {
-      resolve();
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = src;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("FFmpeg 加载失败，请检查网络后重试。"));
-    document.head.appendChild(script);
   });
 }
 
