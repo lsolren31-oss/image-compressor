@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>图片压缩工具</title>
+    <title>媒体处理工具</title>
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
@@ -11,65 +11,179 @@
       <section class="workspace">
         <header class="topbar">
           <div>
-            <h1>图片压缩工具</h1>
-            <p>本地压缩，不上传图片。默认压到 200KB 以下。</p>
+            <h1>媒体处理工具</h1>
+            <p>图片压缩和视频尺寸转换都在浏览器本地完成，不上传文件。</p>
           </div>
-          <div class="target-control">
-            <label for="targetSize">目标大小</label>
-            <div class="input-row">
-              <input id="targetSize" type="number" min="20" max="10240" step="10" value="200">
-              <span>KB</span>
-            </div>
-          </div>
+          <nav class="tool-tabs" aria-label="工具切换">
+            <button class="tab-button active" type="button" data-tool="image">图片压缩</button>
+            <button class="tab-button" type="button" data-tool="video">视频尺寸转换</button>
+          </nav>
         </header>
 
-        <section id="dropZone" class="drop-zone" tabindex="0">
-          <input id="fileInput" type="file" accept="image/jpeg,image/png,image/webp">
-          <div class="upload-icon" aria-hidden="true">+</div>
-          <h2>选择或拖入图片</h2>
-          <p>支持 JPG、PNG、WebP</p>
+        <section id="imageTool" class="tool-section">
+          <div class="section-head">
+            <div>
+              <h2>图片压缩</h2>
+              <p>默认压到 200KB 以下，尽量保留画质。</p>
+            </div>
+            <div class="target-control">
+              <label for="targetSize">目标大小</label>
+              <div class="input-row">
+                <input id="targetSize" type="number" min="20" max="10240" step="10" value="200">
+                <span>KB</span>
+              </div>
+            </div>
+          </div>
+
+          <section id="imageDropZone" class="drop-zone" tabindex="0">
+            <input id="imageFileInput" type="file" accept="image/jpeg,image/png,image/webp">
+            <div class="upload-icon" aria-hidden="true">+</div>
+            <h3>选择或拖入图片</h3>
+            <p>支持 JPG、PNG、WebP</p>
+          </section>
+
+          <section id="imageStatusPanel" class="status-panel hidden" aria-live="polite">
+            <div class="loader"></div>
+            <span id="imageStatusText">正在压缩...</span>
+          </section>
+
+          <section id="imageResultPanel" class="result-panel hidden">
+            <div class="metrics">
+              <article>
+                <span>原图大小</span>
+                <strong id="originalSize">-</strong>
+              </article>
+              <article>
+                <span>压缩后</span>
+                <strong id="compressedSize">-</strong>
+              </article>
+              <article>
+                <span>压缩比例</span>
+                <strong id="savedRatio">-</strong>
+              </article>
+              <article>
+                <span>输出参数</span>
+                <strong id="outputInfo">-</strong>
+              </article>
+            </div>
+
+            <div class="preview-grid">
+              <figure>
+                <figcaption>原图</figcaption>
+                <img id="originalPreview" alt="原图预览">
+              </figure>
+              <figure>
+                <figcaption>压缩图</figcaption>
+                <img id="compressedPreview" alt="压缩图预览">
+              </figure>
+            </div>
+
+            <div class="actions">
+              <button id="imageRetryButton" type="button">重新选择</button>
+              <a id="imageDownloadLink" class="download" download>下载压缩图</a>
+            </div>
+          </section>
         </section>
 
-        <section id="statusPanel" class="status-panel hidden" aria-live="polite">
-          <div class="loader"></div>
-          <span id="statusText">正在压缩...</span>
-        </section>
-
-        <section id="resultPanel" class="result-panel hidden">
-          <div class="metrics">
-            <article>
-              <span>原图大小</span>
-              <strong id="originalSize">-</strong>
-            </article>
-            <article>
-              <span>压缩后</span>
-              <strong id="compressedSize">-</strong>
-            </article>
-            <article>
-              <span>压缩比例</span>
-              <strong id="savedRatio">-</strong>
-            </article>
-            <article>
-              <span>输出参数</span>
-              <strong id="outputInfo">-</strong>
-            </article>
+        <section id="videoTool" class="tool-section hidden">
+          <div class="section-head">
+            <div>
+              <h2>视频尺寸转换</h2>
+              <p>选择平台预设或自定义尺寸，默认裁剪铺满画面。</p>
+            </div>
+            <div class="target-control">
+              <label for="platformSelect">平台</label>
+              <select id="platformSelect">
+                <option value="instagram">Instagram</option>
+                <option value="tiktok">TikTok</option>
+                <option value="youtube">YouTube</option>
+                <option value="facebook">Facebook</option>
+                <option value="x">X / Twitter</option>
+                <option value="pinterest">Pinterest</option>
+                <option value="linkedin">LinkedIn</option>
+                <option value="snapchat">Snapchat</option>
+                <option value="custom">自定义</option>
+              </select>
+            </div>
           </div>
 
-          <div class="preview-grid">
-            <figure>
-              <figcaption>原图</figcaption>
-              <img id="originalPreview" alt="原图预览">
-            </figure>
-            <figure>
-              <figcaption>压缩图</figcaption>
-              <img id="compressedPreview" alt="压缩图预览">
-            </figure>
+          <div id="presetGrid" class="preset-grid" aria-label="尺寸预设"></div>
+
+          <div id="customSizePanel" class="custom-panel hidden">
+            <label>
+              宽度
+              <input id="customWidth" type="number" min="120" max="7680" step="2" value="1080">
+            </label>
+            <label>
+              高度
+              <input id="customHeight" type="number" min="120" max="7680" step="2" value="1920">
+            </label>
           </div>
 
-          <div class="actions">
-            <button id="retryButton" type="button">重新选择</button>
-            <a id="downloadLink" class="download" download>下载压缩图</a>
-          </div>
+          <fieldset class="mode-panel">
+            <legend>画面方式</legend>
+            <label>
+              <input type="radio" name="resizeMode" value="cover" checked>
+              裁剪铺满
+            </label>
+            <label>
+              <input type="radio" name="resizeMode" value="contain">
+              留白适配
+            </label>
+            <label>
+              <input type="radio" name="resizeMode" value="stretch">
+              拉伸变形
+            </label>
+          </fieldset>
+
+          <section id="videoDropZone" class="drop-zone" tabindex="0">
+            <input id="videoFileInput" type="file" accept="video/mp4,video/webm,video/quicktime,.mov">
+            <div class="upload-icon" aria-hidden="true">+</div>
+            <h3>选择或拖入视频</h3>
+            <p>支持 MP4、WebM、MOV；首次转换会加载 FFmpeg</p>
+          </section>
+
+          <section id="videoStatusPanel" class="status-panel hidden" aria-live="polite">
+            <div class="loader"></div>
+            <span id="videoStatusText">正在处理视频...</span>
+          </section>
+
+          <section id="videoResultPanel" class="result-panel hidden">
+            <div class="metrics">
+              <article>
+                <span>原始尺寸</span>
+                <strong id="videoOriginalSize">-</strong>
+              </article>
+              <article>
+                <span>目标尺寸</span>
+                <strong id="videoTargetSize">-</strong>
+              </article>
+              <article>
+                <span>文件大小</span>
+                <strong id="videoFileSize">-</strong>
+              </article>
+              <article>
+                <span>输出参数</span>
+                <strong id="videoOutputInfo">-</strong>
+              </article>
+            </div>
+
+            <div class="preview-grid">
+              <figure>
+                <figcaption>原视频</figcaption>
+                <video id="originalVideoPreview" controls></video>
+              </figure>
+              <figure>
+                <figcaption>转换后</figcaption>
+                <video id="convertedVideoPreview" controls></video>
+              </figure>
+            </div>
+
+            <div class="actions">
+              <button id="videoRetryButton" type="button">重新选择</button>
+              <a id="videoDownloadLink" class="download" download>下载视频</a>
+            </div>
+          </section>
         </section>
       </section>
     </main>
