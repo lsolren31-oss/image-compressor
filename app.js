@@ -38,6 +38,7 @@ const videoRetryButton = document.querySelector("#videoRetryButton");
 
 const FFmpegCoreCDNBase = "https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd";
 const FFmpegModuleUrl = "https://unpkg.com/@ffmpeg/ffmpeg@0.12.15/dist/esm/index.js";
+const FFmpegWorkerModuleUrl = "https://unpkg.com/@ffmpeg/ffmpeg@0.12.15/dist/esm/worker.js";
 const FFmpegUtilModuleUrl = "https://unpkg.com/@ffmpeg/util@0.12.2/dist/esm/index.js";
 
 const platformPresets = {
@@ -432,6 +433,7 @@ async function loadFFmpeg(onProgress) {
       });
 
       await ffmpeg.load({
+        classWorkerURL: await toBlobURL(FFmpegWorkerModuleUrl, "text/javascript"),
         coreURL: await toBlobURL(`${FFmpegCoreCDNBase}/ffmpeg-core.js`, "text/javascript"),
         wasmURL: await toBlobURL(`${FFmpegCoreCDNBase}/ffmpeg-core.wasm`, "application/wasm")
       });
